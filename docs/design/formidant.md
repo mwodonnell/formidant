@@ -291,11 +291,87 @@ def update_item(request: HttpRequest, item_id: int, q: str, item: Form[Item]) ->
 django-ninja signature experience without django-ninja. Third-party adapters build the same
 thing for their framework from the public P4 surface (protocol + introspection + error shape).
 
-## Test design — NOT STARTED (phase 2)
+## Test design — DRAFT (proposed 2026-07-22, awaiting mjo review)
 
-Designed after acceptance criteria are accepted. Every test case names the criterion IDs it
-proves; every criterion must be claimed by at least one test or explicitly marked demo-only.
-R5 is a property-test candidate (hypothesis: generate model instances, round-trip).
+The vetting suite, designed before build. Rules: every criterion is claimed by at least one
+named test (or explicitly marked review-gate); tests mirror the source tree (spoe-forge
+pattern) plus a dedicated round-trip suite and an end-to-end demo app standing in for
+spoe-forge's real-HAProxy docker harness. Module names presume the phase-3 layout
+(`formidant/core/` + `formidant/django/`) and shift with it if needed; the *mapping* is what
+gets locked here.
+
+### Suite layout
+
+```
+tests/
+  core/
+    test_flatten.py       bracket-key parsing → nested dict (pure, no pydantic)
+    test_binding.py       multidict → validated instance (B1, B3, B4, B5)
+    test_nesting.py       nested models + list[Model] (B2)
+    test_bound_form.py    bound-form object semantics (L1, L2, L4)
+    test_widgets.py       type→widget resolution + Meta metadata (R1, R2, D3)
+    test_render.py        emitted HTML, overrides, partials, escaping (L3, R3, R4, X1)
+    test_roundtrip.py     hypothesis property suite (R5)
+    test_boundaries.py    import/api-surface meta-tests (P1, P4)
+  django/
+    test_bind.py          method-aware bind over real HttpRequest (adapter L1/L4, B5 uploads)
+    test_form_view.py     valid-only views + escape hatches (L5, L6)
+    test_bind_view.py     multi-source signature binding (D4)
+    test_template_tags.py tag↔core parity, CSRF injection (R6, X2)
+    test_security.py      mass-assignment, hostile input through the full stack (X3, X1)
+    test_interop.py       same schema as ninja body + JSON schema (D2)
+  demo/
+    test_demo_app.py      end-to-end via Django test client against the demo app (D1)
+```
+
+The **demo app** (`demo/` in-repo: minimal Django project with the signup form and an
+htmx list-of-nested-models page) is a real running artifact, not test scaffolding — it is
+the canon for D1 and the manual-QA surface, mirroring spoe-forge's `docker/` harness.
+
+### Criterion → test mapping
+
+| ID | Proven by | Shape |
+|---|---|---|
+| B1 | `core/test_binding.py::test_vanilla_model_binds` + coercion/constraint/default param cases | table-driven unit |
+| B2 | `core/test_nesting.py` — nested model, `list[Model]`, deep mix, malformed-bracket error cases | unit |
+| B3 | `core/test_binding.py::test_repeated_keys_bind_list` | unit |
+| B4 | `core/test_binding.py::test_form_quirk_normalization` — absent checkbox / empty string × (bool, Optional[T], defaulted, required) matrix | table-driven unit |
+| B5 | `core/test_binding.py` (protocol fake) + `django/test_bind.py::test_file_upload` (real `SimpleUploadedFile`) | unit + adapter |
+| L1 | `core/test_bound_form.py::test_valid_exposes_instance`, `::test_invalid_exposes_errors_and_raw` — asserts no exception escapes | unit |
+| L2 | `core/test_bound_form.py::test_raw_survives_failed_coercion` + `core/test_render.py::test_rerender_shows_raw_input` | unit + render |
+| L3 | `core/test_render.py::test_field_error_placement`, `::test_model_error_at_form_level`, `::test_nested_list_error_targets_row` | render |
+| L4 | `core/test_bound_form.py::test_unbound_from_class` (defaults), `::test_unbound_from_instance` (edit case) | unit |
+| L5 | `django/test_form_view.py::test_get_renders_unbound`, `::test_invalid_post_rerenders`, `::test_valid_post_enters_body` | adapter (RequestFactory) |
+| L6 | `django/test_form_view.py::test_on_invalid_hook_overrides_response`, `::test_on_invalid_hook_defers`, `::test_bound_annotation_always_enters_body` | adapter |
+| R1 | `core/test_widgets.py::test_default_widget_matrix` — one row per v1 type, asserting input type + constraint attrs (`maxlength`, `min`/`max`, `required`) | table-driven unit |
+| R2 | `core/test_widgets.py::test_meta_overrides` + `::test_meta_is_validation_inert` (model validates/serializes/json-schemas identically with Meta stripped) | unit |
+| R3 | `core/test_render.py::test_override_widget_template`, `::test_override_fieldset`, `::test_override_form` (user loader dir wins) | render |
+| R4 | `core/test_render.py::test_render_field_partial_matches_field_block` | render |
+| R5 | `core/test_roundtrip.py` — hypothesis: generate instances over the v1 matrix, render, harvest input values with an html.parser helper, rebind, assert equality | property |
+| R6 | `django/test_template_tags.py::test_tag_output_identical_to_core_render` (byte compare, form + single field) | adapter |
+| P1 | `core/test_boundaries.py::test_core_imports_no_django` — subprocess `import formidant.core`, assert no `django*` in `sys.modules` | meta |
+| P2 | P1 + typed `FormData` protocol as the only bind input; residual enforcement is a phase-3 review gate | meta + review-gate |
+| P3 | review-gate at each adapter PR (line counting in CI is brittle; the ~150 ceiling is a design tripwire, not a build gate) | review-gate |
+| P4 | `core/test_boundaries.py::test_django_adapter_uses_public_surface_only` — ast walk of `formidant/django/` asserting no underscore-prefixed imports from core | meta |
+| X1 | `core/test_render.py::test_hostile_input_escaped` — `<script>`, quote-breaking attrs, hostile error text, in value/attr/error positions; repeated through the full stack in `django/test_security.py` | render + adapter |
+| X2 | `django/test_template_tags.py::test_csrf_token_rendered` | adapter |
+| X3 | `django/test_security.py::test_extra_keys_ignored`, `::test_extra_forbid_is_form_error_not_500` | adapter |
+| D1 | `demo/test_demo_app.py::test_signup_example_line_budget` — counts non-blank, non-import lines of the demo signup module (≤ 25) | meta over real demo code |
+| D2 | `django/test_interop.py::test_same_schema_as_ninja_body` (django-ninja as test-only dep), `::test_json_schema_emits` | integration |
+| D3 | `core/test_render.py::test_default_messages_render`, `core/test_widgets.py::test_message_override_hook` | unit |
+| D4 | `django/test_bind_view.py::test_path_query_form_bind_together`, `::test_source_errors_report_per_source` | adapter |
+
+Flagged as **not a standard pattern**: the two meta-tests that count/inspect source (D1 line
+budget, P4 ast walk). Research verdict: no established library does this; the standard
+alternative is review-gating. Proposed anyway because both criteria are objective numbers
+that silently drift under review-gating — P3 stays a review-gate as the contrast case.
+Pushback welcome.
+
+### Test dependencies (proposed — need mjo approval before install)
+
+`pytest`, `pytest-django`, `hypothesis` (R5), `django` (adapter tests), `django-ninja`
+(test-only, D2 interop), `coverage`/`pytest-cov`. Tooling (uv, ruff pinned, pre-commit, CI)
+follows the spoe-forge setup and is locked in phase 3.
 
 ## Pre-lock check — NOT STARTED (phase 3)
 
