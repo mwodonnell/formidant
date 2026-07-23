@@ -10,10 +10,14 @@ get backported to `~/.claude/design-doc-reference.md` (agreed 2026-07-22 — pro
 then amend the standard). This repo is standalone; the README will grow into the canonical
 record if the project sprouts subsystems.
 
-## Implementation status (updated 2026-07-22)
+## Implementation status (updated 2026-07-23)
 
-Design pass complete and locked (all phases accepted 2026-07-22). Ticket 1 (scaffolding)
-in progress; no tickets merged.
+Design pass complete and locked (2026-07-22). Ticket 1 (scaffolding) merged. Tickets 2–4
+(binding core: protocol/flatten/bind/BoundForm) done on PR seam B, in review. Next: PR seam
+C (rendering — tickets 5–7). Findings so far worth knowing: pydantic natively coerces
+checkbox "on" → True; SecretStr treats "" as absent (empty password = missing, by
+construction); pydantic hooks must attach to protocols after class creation or they become
+protocol members and break structural isinstance.
 
 ## Context
 
@@ -479,7 +483,9 @@ Verified by executed script against **pydantic 2.13.4** and **jinja2 3.1.6** (10
 
 | Module | Responsibility | Key exports |
 |---|---|---|
-| `core/protocol.py` | `FormData` + `UploadedFile` protocols — the only request-shaped things core knows | `FormData`, `UploadedFile` |
+| `core/form_types.py` | seam vocabulary: path aliases, `StructuralError`, `InflateResult`, `BindResult` (spoe-forge `spop_types` pattern; one types module, no functions) | those types |
+| `core/protocol.py` | transport protocols — the only request-shaped things core knows | `Multidict`, `FormData` |
+| `core/files.py` | the file field type + its pydantic integration (ninja `files.py` pattern) | `UploadedFile` |
 | `core/flatten.py` | bracket-key multidict → nested dict (pure, no pydantic) | `inflate` |
 | `core/binding.py` | quirk normalization + `model_validate` orchestration | `bind` |
 | `core/bound.py` | the bound-form object | `BoundForm` |
@@ -535,10 +541,12 @@ PR seams: A(1) · B(2–4) · C(5–7) · D(8–9) · E(10–11) · F(12).
 1. `chore: scaffold project tooling` — pyproject (uv_build), ruff, pre-commit, pytest+cov,
    CI workflows, package skeleton — **not started** (PR A)
 2. `feat: add formdata protocol and bracket flattener` — `protocol.py`, `flatten.py`,
-   `constants.py`, P1 boundary meta-test — **not started** (PR B)
+   `constants.py`, P1 boundary meta-test — **DONE** (PR B; B5 core-side landed here too, and
+   the review refactor split vocabulary into `form_types.py` + `files.py`)
 3. `feat: add quirk normalization and binding core` — `binding.py`, `errors.py`; B1–B4 tests
-   — **not started** (PR B)
-4. `feat: add bound form object` — `bound.py`; L1/L2/L4 tests — **not started** (PR B)
+   — **DONE** (PR B)
+4. `feat: add bound form object` — `bound.py`, `exceptions.py`; L1/L2/L4 tests — **DONE**
+   (PR B)
 5. `feat: add meta vocabulary and widget resolution` — `meta.py`, `widgets.py`; R1
    resolution/R2/D3 tests — **not started** (PR C)
 6. `feat: add jinja2 renderer with default templates` — `rendering.py`, `templates/`; R3/R4/
@@ -570,6 +578,10 @@ with phase 2, mjo 2026-07-22).
 - **Widget theming packs (e.g. Tailwind/DaisyUI templates)** — deferred; R3 is the seam.
 - **Template-engine override** (mjo, 2026-07-22) — v1 ships Jinja2 only, behind the engine
   seam; exposing that seam publicly for alternative engines is a v2 round.
+- **`tags[]` append syntax** (flagged in ticket 2 review, default kept 2026-07-22) —
+  jQuery/qs-style `tags[]=a&tags[]=b` is rejected as malformed per the locked grammar
+  (repeated bare keys are the scalar-list encoding). Append semantics are cheap to add;
+  revisit on first real-world demand.
 
 ## Key references (verified 2026-07-22)
 
