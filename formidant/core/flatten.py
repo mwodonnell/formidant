@@ -83,7 +83,7 @@ def _parse_key(key: str) -> Path | None:
     if "".join(f"[{segment}]" for segment in segments) != rest:
         return None
 
-    return (head, *(int(s) if s.isdigit() else s for s in segments))
+    return head, *(int(s) if s.isdigit() else s for s in segments)
 
 
 def _is_list_path(path: Path, list_paths: Set[ListPath]) -> bool:

@@ -1,1 +1,2 @@
 BRACKET_MAX_DEPTH = 5
+NON_FIELD_KEY = "__all__"
