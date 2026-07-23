@@ -1,0 +1,3 @@
+<div class="fd-choices" id="{{ id }}">
+{% for choice_value, choice_label in choices %}  <label><input type="checkbox" name="{{ name }}" value="{{ choice_value }}"{% if choice_value in selected %} checked{% endif %}> {{ choice_label }}</label>
+{% endfor %}</div>

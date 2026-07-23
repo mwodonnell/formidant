@@ -1,0 +1,3 @@
+<select name="{{ name }}" id="{{ id }}"{% if required %} required{% endif %}{% for key, val in attrs.items() %} {{ key }}="{{ val }}"{% endfor %}>
+{% for choice_value, choice_label in choices %}  <option value="{{ choice_value }}"{% if choice_value in selected %} selected{% endif %}>{{ choice_label }}</option>
+{% endfor %}</select>

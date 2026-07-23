@@ -1,0 +1,2 @@
+{% if form_errors %}<ul class="fd-form-errors">{% for error in form_errors %}<li>{{ error }}</li>{% endfor %}</ul>
+{% endif %}{{ hidden_inputs }}{% for field in fields %}{{ field }}{% endfor %}

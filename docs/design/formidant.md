@@ -12,12 +12,13 @@ record if the project sprouts subsystems.
 
 ## Implementation status (updated 2026-07-23)
 
-Design pass complete and locked (2026-07-22). Ticket 1 (scaffolding) merged. Tickets 2–4
-(binding core: protocol/flatten/bind/BoundForm) done on PR seam B, in review. Next: PR seam
-C (rendering — tickets 5–7). Findings so far worth knowing: pydantic natively coerces
-checkbox "on" → True; SecretStr treats "" as absent (empty password = missing, by
-construction); pydantic hooks must attach to protocols after class creation or they become
-protocol members and break structural isinstance.
+Design pass complete and locked (2026-07-22). Merged: ticket 1 (scaffolding, PR #3), tickets
+2–4 (binding core, PR #4), tickets 5–7 (rendering: meta/widgets/jinja2/roundtrip, PR #5).
+Next: PR seam D (tickets 8–9, django adapter + form_view). Findings worth knowing: pydantic
+natively coerces checkbox "on" → True; SecretStr treats "" as absent (empty password =
+missing, by construction); pydantic hooks must attach to protocols after class creation or
+they become protocol members and break structural isinstance; StrEnum's MRO puts str before
+Enum so enums resolve structurally, not via the widget registry.
 
 ## Context
 
@@ -352,7 +353,7 @@ the canon for D1 and the manual-QA surface, mirroring spoe-forge's `docker/` har
 | R2 | `core/test_widgets.py::test_meta_overrides` + `::test_meta_is_validation_inert` (model validates/serializes/json-schemas identically with Meta stripped) | unit |
 | R3 | `core/test_render.py::test_override_widget_template`, `::test_override_fieldset`, `::test_override_form` (user loader dir wins) | render |
 | R4 | `core/test_render.py::test_render_field_partial_matches_field_block` | render |
-| R5 | `core/test_roundtrip.py` — hypothesis: generate instances over the v1 matrix, render, harvest input values with an html.parser helper, rebind, assert equality | property |
+| R5 | `core/test_roundtrip.py` — hypothesis: generate instances over the v1 matrix, render, harvest input values with an html.parser helper, rebind, assert equality. Exclusions (build, 2026-07-23): UploadedFile (not round-trippable via form data), HttpUrl (trailing-slash normalization), SecretStr (password values never re-render by design) | property |
 | R6 | `django/test_template_tags.py::test_tag_output_identical_to_core_render` (byte compare, form + single field) | adapter |
 | P1 | `core/test_boundaries.py::test_core_imports_no_django` — subprocess `import formidant.core`, assert no `django*` in `sys.modules` | meta |
 | P2 | P1 + typed `FormData` protocol as the only bind input; residual enforcement is a phase-3 review gate | meta + review-gate |
@@ -476,6 +477,21 @@ Verified by executed script against **pydantic 2.13.4** and **jinja2 3.1.6** (10
 - **Tooling mirrors spoe-forge:** uv build backend, ruff (pinned), pre-commit, pytest with
   coverage, GitHub Actions `pr_check` + `release`, Python ≥3.12. Tickets tracked in this doc
   and as GitHub PRs (personal OSS — the Jira workflow doesn't apply).
+
+Renderer micro-decisions (build, 2026-07-23):
+
+- **Bound forms render values exclusively from raw** (unbound: initial → field default). A
+  naive raw→initial fallback would re-check checkboxes the user just cleared.
+- **Password inputs never render a value**, raw or initial (Django's
+  `render_value=False` prior art).
+- **Container fields (fieldset/repeat) suppress the outer label**; the fieldset legend
+  carries it — avoids double-labelling.
+- **Repeat rows render through `widgets/repeat_row.html`** so rows are overridable and
+  htmx-targetable; `render_field(form, name, index=i)` returns a single row partial.
+- **Unbound-without-instance renders from a defaults tree** (field defaults serialized
+  model_dump-style) so nested-model defaults populate children.
+- **`hidden_inputs` is trusted HTML** inserted verbatim into form.html — the X2 CSRF slot
+  contract; adapters must pass pre-escaped markup only.
 - All build decisions (module layout, template engine, `Annotated` metadata vocabulary,
   bracket-parsing semantics, file-type design, error-message hook shape): **OPEN — phase 3.**
 
@@ -486,6 +502,7 @@ Verified by executed script against **pydantic 2.13.4** and **jinja2 3.1.6** (10
 | `core/form_types.py` | seam vocabulary: path aliases, `StructuralError`, `InflateResult`, `BindResult` (spoe-forge `spop_types` pattern; one types module, no functions) | those types |
 | `core/protocol.py` | transport protocols — the only request-shaped things core knows | `Multidict`, `FormData` |
 | `core/files.py` | the file field type + its pydantic integration (ninja `files.py` pattern) | `UploadedFile` |
+| `core/introspect.py` | typing/annotation introspection helpers shared by binding and widgets (one definition, no drift) | — |
 | `core/flatten.py` | bracket-key multidict → nested dict (pure, no pydantic) | `inflate` |
 | `core/binding.py` | quirk normalization + `model_validate` orchestration | `bind` |
 | `core/bound.py` | the bound-form object | `BoundForm` |
@@ -547,11 +564,11 @@ PR seams: A(1) · B(2–4) · C(5–7) · D(8–9) · E(10–11) · F(12).
    — **DONE** (PR B)
 4. `feat: add bound form object` — `bound.py`, `exceptions.py`; L1/L2/L4 tests — **DONE**
    (PR B)
-5. `feat: add meta vocabulary and widget resolution` — `meta.py`, `widgets.py`; R1
-   resolution/R2/D3 tests — **not started** (PR C)
+5. `feat: add meta vocabulary and widget resolution` — `meta.py`, `widgets.py`,
+   `introspect.py`; R1 resolution/R2/D3 tests — **DONE** (PR C)
 6. `feat: add jinja2 renderer with default templates` — `rendering.py`, `templates/`; R3/R4/
-   L3/X1 render tests — **not started** (PR C)
-7. `test: add roundtrip property suite` — hypothesis R5 (test-only) — **not started** (PR C)
+   L3/X1 render tests — **DONE** (PR C)
+7. `test: add roundtrip property suite` — hypothesis R5 (test-only) — **DONE** (PR C)
 8. `feat: add django adapter bind` — `django/adapter.py`; uploads (B5), P4 meta-test —
    **not started** (PR D)
 9. `feat: add form_view decorator with escape hatches` — L5/L6 — **not started** (PR D)
