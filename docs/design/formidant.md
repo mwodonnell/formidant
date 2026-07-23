@@ -10,10 +10,14 @@ get backported to `~/.claude/design-doc-reference.md` (agreed 2026-07-22 — pro
 then amend the standard). This repo is standalone; the README will grow into the canonical
 record if the project sprouts subsystems.
 
-## Implementation status (updated 2026-07-22)
+## Implementation status (updated 2026-07-23)
 
-Design pass complete and locked (all phases accepted 2026-07-22). Ticket 1 (scaffolding)
-in progress; no tickets merged.
+Design pass complete and locked (2026-07-22). Ticket 1 (scaffolding) merged. Tickets 2–4
+(binding core: protocol/flatten/bind/BoundForm) done on PR seam B, in review. Next: PR seam
+C (rendering — tickets 5–7). Findings so far worth knowing: pydantic natively coerces
+checkbox "on" → True; SecretStr treats "" as absent (empty password = missing, by
+construction); pydantic hooks must attach to protocols after class creation or they become
+protocol members and break structural isinstance.
 
 ## Context
 
@@ -537,10 +541,12 @@ PR seams: A(1) · B(2–4) · C(5–7) · D(8–9) · E(10–11) · F(12).
 1. `chore: scaffold project tooling` — pyproject (uv_build), ruff, pre-commit, pytest+cov,
    CI workflows, package skeleton — **not started** (PR A)
 2. `feat: add formdata protocol and bracket flattener` — `protocol.py`, `flatten.py`,
-   `constants.py`, P1 boundary meta-test — **not started** (PR B)
+   `constants.py`, P1 boundary meta-test — **DONE** (PR B; B5 core-side landed here too, and
+   the review refactor split vocabulary into `form_types.py` + `files.py`)
 3. `feat: add quirk normalization and binding core` — `binding.py`, `errors.py`; B1–B4 tests
-   — **not started** (PR B)
-4. `feat: add bound form object` — `bound.py`; L1/L2/L4 tests — **not started** (PR B)
+   — **DONE** (PR B)
+4. `feat: add bound form object` — `bound.py`, `exceptions.py`; L1/L2/L4 tests — **DONE**
+   (PR B)
 5. `feat: add meta vocabulary and widget resolution` — `meta.py`, `widgets.py`; R1
    resolution/R2/D3 tests — **not started** (PR C)
 6. `feat: add jinja2 renderer with default templates` — `rendering.py`, `templates/`; R3/R4/
