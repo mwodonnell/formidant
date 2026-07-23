@@ -1,10 +1,10 @@
 # formidant — design & plan
 
-**Status: plan locked 2026-07-22 with mjo.** All three phases CLOSED — acceptance criteria,
-test design (PR #1), and build design (decisions, module map, flow, ticket plan) accepted.
-**In build — ticket 1 (scaffolding) in progress; nothing merged yet.** All work lands via
-PR — no direct commits to main (mjo, 2026-07-22). This doc carries the working design
-between sessions; update Implementation status as tickets land.
+**Status: v1 COMPLETE 2026-07-23.** Plan locked 2026-07-22 with mjo; all three design phases
+CLOSED; all 12 tickets built and merged across 6 PR seams under mjo's blanket build
+authorization (2026-07-23, every PR auto-approved; whole-project review by mjo pending).
+All work lands via PR — no direct commits to main (mjo, 2026-07-22). This doc carries the
+working design between sessions; update Implementation status as work lands.
 This doc pioneers the acceptance-criteria and test-design sections; once proved out here they
 get backported to `~/.claude/design-doc-reference.md` (agreed 2026-07-22 — prove out first,
 then amend the standard). This repo is standalone; the README will grow into the canonical
@@ -12,10 +12,30 @@ record if the project sprouts subsystems.
 
 ## Implementation status (updated 2026-07-23)
 
-Design pass complete and locked (2026-07-22). Merged: ticket 1 (scaffolding, PR #3), tickets
-2–4 (binding core, PR #4), tickets 5–7 (rendering: meta/widgets/jinja2/roundtrip, PR #5),
+**v1 COMPLETE (2026-07-23).** All 12 tickets landed across 6 merged PR seams: ticket 1
+(scaffolding, PR #3), tickets 2–4 (binding core, PR #4), tickets 5–7 (rendering, PR #5),
 tickets 8–9 (django adapter + form_view, PR #6), tickets 10–11 (bind_view + template tags,
-PR E). Next: PR seam F (ticket 12, demo app + interop).
+PR #7), ticket 12 (demo app + interop + security tests, PR #8). 130 tests, 99% coverage.
+Acceptance-criteria audit below; runnable demo in `demo/`
+(`uv run --extra test python demo/manage.py runserver`).
+
+### Acceptance-criteria audit (2026-07-23)
+
+All 25 criteria checked against the merged test suite. Fully covered with passing tests:
+B1–B5, L1–L6, R1–R6, P1/P2/P4, X1–X3, D1–D4. Notes on the non-test-enforced and
+partially-shaded items:
+
+- **P3 (adapter ≤ ~150 lines, review-gate):** `formidant/django` totals **231 non-blank
+  lines**. The adapter *seam* itself is well under the tripwire (adapter.py 29 + templatetags
+  22 + apps 4 = 55); the overage is `views.py` (168), which carries `form_view` **and** the
+  review-added D4 `bind_view` machinery that postdates the ~150 estimate. Reading: the seam
+  is thin; the decorator surface grew by scope addition, not leakage. Flagged for mjo's
+  whole-project review rather than trimmed to game the number.
+- **D1:** demo signup module is **21 non-blank, non-import lines** (≤ 25), enforced by meta-test.
+- **R1 partial shading (pre-existing, recorded at ticket 5):** choice-less `list[str]` falls
+  back to a text input; the checkbox-group row of the matrix applies to enum/Literal items.
+- **B4 shading:** the absent-checkbox→False rule applies to exactly-`bool` fields;
+  `Optional[bool]` falls to its default (checkboxes cannot express tri-state).
 
 Multi-source/tags micro-decisions (build, 2026-07-23): `Form`/`FormContract` live in
 core.bound beside `Bound` — `Form[Model]` is `Annotated[Model, FormContract(Model)]` so the
@@ -574,7 +594,7 @@ Each ticket ≈ one reviewable commit (~150 lines non-test); pause for review af
 PR seams: A(1) · B(2–4) · C(5–7) · D(8–9) · E(10–11) · F(12).
 
 1. `chore: scaffold project tooling` — pyproject (uv_build), ruff, pre-commit, pytest+cov,
-   CI workflows, package skeleton — **not started** (PR A)
+   CI workflows, package skeleton — **DONE** (PR A/#3)
 2. `feat: add formdata protocol and bracket flattener` — `protocol.py`, `flatten.py`,
    `constants.py`, P1 boundary meta-test — **DONE** (PR B; B5 core-side landed here too, and
    the review refactor split vocabulary into `form_types.py` + `files.py`)
@@ -593,11 +613,13 @@ PR seams: A(1) · B(2–4) · C(5–7) · D(8–9) · E(10–11) · F(12).
 10. `feat: add bind_view multi-source decorator` — D4 — **DONE** (PR E)
 11. `feat: add template tags and csrf` — R6/X2 — **DONE** (PR E)
 12. `feat: add demo app and interop tests` — `demo/`, D1 line-budget test, D2 ninja interop
-    — **not started** (PR F)
+    — **DONE** (PR F/#8; also landed `test_security.py` covering the X3/X1 full-stack
+    cases from the test-design mapping that no earlier seam had claimed)
 
 Dependencies added: core — `pydantic`, `jinja2` (both CLOSED in Decisions). Test-only —
 `pytest`, `pytest-django`, `hypothesis`, `django`, `django-ninja`, `pytest-cov` (accepted
-with phase 2, mjo 2026-07-22).
+with phase 2, mjo 2026-07-22), plus `email-validator` (added at ticket 5 for the EmailStr
+matrix row — user-side extra kept out of runtime deps).
 
 ## Deferred / open (each gets its own future round)
 
