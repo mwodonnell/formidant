@@ -13,8 +13,14 @@ record if the project sprouts subsystems.
 ## Implementation status (updated 2026-07-23)
 
 Design pass complete and locked (2026-07-22). Merged: ticket 1 (scaffolding, PR #3), tickets
-2–4 (binding core, PR #4), tickets 5–7 (rendering: meta/widgets/jinja2/roundtrip, PR #5).
-Next: PR seam D (tickets 8–9, django adapter + form_view). Findings worth knowing: pydantic
+2–4 (binding core, PR #4), tickets 5–7 (rendering: meta/widgets/jinja2/roundtrip, PR #5),
+tickets 8–9 (django adapter + form_view, PR D). Next: PR seam E (tickets 10–11, bind_view +
+template tags). Adapter micro-decisions (build, 2026-07-23): all non-GET/HEAD methods bind
+(Django only parses POST bodies, so PUT/PATCH bind empty — accepted); the validation context
+key "request" cannot be overridden by user context; `Bound`/`BoundContract` live in
+core.bound as adapter-agnostic vocabulary; a `Bound[Model]` view body also runs on GET
+(receives the unbound form) — full-manual mode, so the decorator's template goes unused for
+Bound views, deliberately. Findings worth knowing: pydantic
 natively coerces checkbox "on" → True; SecretStr treats "" as absent (empty password =
 missing, by construction); pydantic hooks must attach to protocols after class creation or
 they become protocol members and break structural isinstance; StrEnum's MRO puts str before
@@ -570,8 +576,8 @@ PR seams: A(1) · B(2–4) · C(5–7) · D(8–9) · E(10–11) · F(12).
    L3/X1 render tests — **DONE** (PR C)
 7. `test: add roundtrip property suite` — hypothesis R5 (test-only) — **DONE** (PR C)
 8. `feat: add django adapter bind` — `django/adapter.py`; uploads (B5), P4 meta-test —
-   **not started** (PR D)
-9. `feat: add form_view decorator with escape hatches` — L5/L6 — **not started** (PR D)
+   **DONE** (PR D)
+9. `feat: add form_view decorator with escape hatches` — L5/L6 — **DONE** (PR D)
 10. `feat: add bind_view multi-source decorator` — D4 — **not started** (PR E)
 11. `feat: add template tags and csrf` — R6/X2 — **not started** (PR E)
 12. `feat: add demo app and interop tests` — `demo/`, D1 line-budget test, D2 ninja interop
