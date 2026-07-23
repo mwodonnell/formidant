@@ -4,6 +4,7 @@ from typing import Any
 
 from pydantic import BaseModel, ValidationError
 
+from formidant.core.bound import BoundForm
 from formidant.core.constants import BRACKET_MAX_DEPTH
 from formidant.core.errors import error_map
 from formidant.core.flatten import inflate
@@ -11,6 +12,13 @@ from formidant.core.form_types import BindResult, ListPath
 from formidant.core.protocol import FormData, Multidict
 
 _COLLECTION_ORIGINS = (list, set, frozenset, tuple)
+
+
+def bind[M: BaseModel](
+    model: type[M], data: Multidict, context: dict[str, Any] | None = None
+) -> BoundForm[M]:
+    """Bind submitted form data to a model, returning the bound form."""
+    return BoundForm(model=model, result=bind_data(model, data, context))
 
 
 def bind_data[M: BaseModel](
