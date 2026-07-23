@@ -14,8 +14,20 @@ record if the project sprouts subsystems.
 
 Design pass complete and locked (2026-07-22). Merged: ticket 1 (scaffolding, PR #3), tickets
 2–4 (binding core, PR #4), tickets 5–7 (rendering: meta/widgets/jinja2/roundtrip, PR #5),
-tickets 8–9 (django adapter + form_view, PR D). Next: PR seam E (tickets 10–11, bind_view +
-template tags). Adapter micro-decisions (build, 2026-07-23): all non-GET/HEAD methods bind
+tickets 8–9 (django adapter + form_view, PR #6), tickets 10–11 (bind_view + template tags,
+PR E). Next: PR seam F (ticket 12, demo app + interop).
+
+Multi-source/tags micro-decisions (build, 2026-07-23): `Form`/`FormContract` live in
+core.bound beside `Bound` — `Form[Model]` is `Annotated[Model, FormContract(Model)]` so the
+view body param is typed as the model itself; bind_view's default invalid response is a
+plain-text 400 listing source-prefixed errors (`query: limit: Field required`), with an
+`on_invalid(request, errors)` hook mirroring form_view (None defers to the 400); a GET
+reaching a `Form[Model]` param is `form: <name>: No submitted form data` (unbound ≠ bound
+invalid); query binding is single-value scalars only (list query params deferred);
+`formidant.django` ships `FormidantConfig` with app label `formidant` (the derived label
+"django" invites collisions) and INSTALLED_APPS uses `"formidant.django"`; the
+`{% formidant %}` tag renders without a CSRF input when no request is in template context
+(core stays CSRF-ignorant; the tag is the adapter seam). Adapter micro-decisions (build, 2026-07-23): all non-GET/HEAD methods bind
 (Django only parses POST bodies, so PUT/PATCH bind empty — accepted); the validation context
 key "request" cannot be overridden by user context; `Bound`/`BoundContract` live in
 core.bound as adapter-agnostic vocabulary; a `Bound[Model]` view body also runs on GET
@@ -578,8 +590,8 @@ PR seams: A(1) · B(2–4) · C(5–7) · D(8–9) · E(10–11) · F(12).
 8. `feat: add django adapter bind` — `django/adapter.py`; uploads (B5), P4 meta-test —
    **DONE** (PR D)
 9. `feat: add form_view decorator with escape hatches` — L5/L6 — **DONE** (PR D)
-10. `feat: add bind_view multi-source decorator` — D4 — **not started** (PR E)
-11. `feat: add template tags and csrf` — R6/X2 — **not started** (PR E)
+10. `feat: add bind_view multi-source decorator` — D4 — **DONE** (PR E)
+11. `feat: add template tags and csrf` — R6/X2 — **DONE** (PR E)
 12. `feat: add demo app and interop tests` — `demo/`, D1 line-budget test, D2 ninja interop
     — **not started** (PR F)
 
