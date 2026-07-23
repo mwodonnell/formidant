@@ -9,4 +9,4 @@ def test_package_imports() -> None:
 
 def test_public_api_is_narrow() -> None:
     assert all(hasattr(formidant, name) for name in formidant.__all__)
-    assert len(formidant.__all__) <= 12
+    assert len(formidant.__all__) <= 16

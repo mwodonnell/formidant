@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Annotated, Any
 
 from pydantic import BaseModel
 
@@ -71,3 +71,22 @@ class BoundForm[M: BaseModel]:
         from formidant.core.rendering import render_field
 
         return render_field(self, name, engine=engine, index=index)
+
+
+@dataclass(frozen=True)
+class BoundContract:
+    """Adapter-inspectable marker carried by Bound[Model] annotations."""
+
+    model: type[BaseModel]
+
+
+class Bound:
+    """View annotation contract: Bound[Model] means the body always runs.
+
+    Where a plain `form: Model` annotation short-circuits invalid submissions,
+    `form: Bound[Model]` hands the body the BoundForm itself - errors, raw
+    values and all - restoring manual branching with decorator ergonomics.
+    """
+
+    def __class_getitem__(cls, model: type[BaseModel]) -> Any:
+        return Annotated[BoundForm, BoundContract(model)]
