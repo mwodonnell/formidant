@@ -479,7 +479,9 @@ Verified by executed script against **pydantic 2.13.4** and **jinja2 3.1.6** (10
 
 | Module | Responsibility | Key exports |
 |---|---|---|
-| `core/protocol.py` | `FormData` + `UploadedFile` protocols — the only request-shaped things core knows | `FormData`, `UploadedFile` |
+| `core/form_types.py` | seam vocabulary: path aliases, `StructuralError`, `InflateResult`, `BindResult` (spoe-forge `spop_types` pattern; one types module, no functions) | those types |
+| `core/protocol.py` | transport protocols — the only request-shaped things core knows | `Multidict`, `FormData` |
+| `core/files.py` | the file field type + its pydantic integration (ninja `files.py` pattern) | `UploadedFile` |
 | `core/flatten.py` | bracket-key multidict → nested dict (pure, no pydantic) | `inflate` |
 | `core/binding.py` | quirk normalization + `model_validate` orchestration | `bind` |
 | `core/bound.py` | the bound-form object | `BoundForm` |

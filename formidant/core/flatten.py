@@ -1,32 +1,12 @@
 import re
 from collections.abc import Set
-from dataclasses import dataclass, field
 from typing import Any
 
 from formidant.core.constants import BRACKET_MAX_DEPTH
+from formidant.core.form_types import InflateResult, ListPath, Path, StructuralError
 from formidant.core.protocol import Multidict
 
-PathSegment = str | int
-Path = tuple[PathSegment, ...]
-ListPath = tuple[str, ...]
-
 _SEGMENT_RE = re.compile(r"\[([^\[\]]+)\]")
-
-
-@dataclass(frozen=True)
-class StructuralError:
-    """A malformed-input problem found before validation, tied to an input name."""
-
-    input_name: str
-    message: str
-
-
-@dataclass(frozen=True)
-class InflateResult:
-    """Nested data ready for model validation, plus any structural errors."""
-
-    data: dict[str, Any]
-    errors: list[StructuralError] = field(default_factory=list)
 
 
 class _IndexDict(dict):

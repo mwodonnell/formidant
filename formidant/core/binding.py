@@ -1,29 +1,16 @@
 import types
 import typing
-from dataclasses import dataclass, field
 from typing import Any
 
 from pydantic import BaseModel, ValidationError
 
 from formidant.core.constants import BRACKET_MAX_DEPTH
 from formidant.core.errors import error_map
-from formidant.core.flatten import ListPath, inflate
+from formidant.core.flatten import inflate
+from formidant.core.form_types import BindResult, ListPath
 from formidant.core.protocol import FormData, Multidict
 
 _COLLECTION_ORIGINS = (list, set, frozenset, tuple)
-
-
-@dataclass(frozen=True)
-class BindResult[M: BaseModel]:
-    """Outcome of binding form data to a model: an instance or an error map, plus raw input."""
-
-    instance: M | None
-    errors: dict[str, list[str]]
-    raw: dict[str, list[str]] = field(default_factory=dict)
-
-    @property
-    def valid(self) -> bool:
-        return self.instance is not None
 
 
 def bind_data[M: BaseModel](

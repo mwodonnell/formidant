@@ -1,7 +1,8 @@
 from pydantic import ValidationError
 
 from formidant.core.constants import NON_FIELD_KEY
-from formidant.core.flatten import StructuralError, path_to_name
+from formidant.core.flatten import path_to_name
+from formidant.core.form_types import StructuralError
 
 
 def error_map(

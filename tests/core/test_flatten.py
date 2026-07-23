@@ -1,6 +1,7 @@
 import pytest
 
-from formidant.core.flatten import InflateResult, inflate, path_to_name
+from formidant.core.flatten import inflate, path_to_name
+from formidant.core.form_types import InflateResult
 from tests.utils import FakeMultidict
 
 

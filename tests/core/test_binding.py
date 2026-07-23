@@ -5,8 +5,9 @@ from typing import Optional
 import pytest
 from pydantic import BaseModel, Field, SecretStr, field_validator, model_validator
 
-from formidant.core.binding import BindResult, bind_data, list_paths_for
+from formidant.core.binding import bind_data, list_paths_for
 from formidant.core.constants import NON_FIELD_KEY
+from formidant.core.form_types import BindResult
 from tests.utils import FakeMultidict
 
 
@@ -183,7 +184,7 @@ def test_quirks_normalize_inside_nested_models() -> None:
 
 
 def test_file_field_binds_from_formdata_files() -> None:
-    from formidant.core.protocol import UploadedFile
+    from formidant.core.files import UploadedFile
     from tests.utils import FakeFormData, FakeUpload
 
     class Doc(BaseModel):
@@ -198,7 +199,7 @@ def test_file_field_binds_from_formdata_files() -> None:
 
 
 def test_missing_file_field_is_field_error() -> None:
-    from formidant.core.protocol import UploadedFile
+    from formidant.core.files import UploadedFile
     from tests.utils import FakeFormData
 
     class Doc(BaseModel):
