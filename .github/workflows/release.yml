@@ -1,0 +1,58 @@
+name: Publish to PyPI
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  update-version-and-publish:
+    name: Update version and publish to PyPI
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install
+
+      - name: Extract version from release
+        id: extract_version
+        run: |
+          TAG_NAME="${{ github.event.release.tag_name }}"
+          VERSION="${TAG_NAME#v}"
+
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Extracted version: $VERSION"
+
+      - name: Update pyproject.toml
+        run: |
+          VERSION="${{ steps.extract_version.outputs.version }}"
+          echo "Updating pyproject.toml to version $VERSION"
+          sed -i "s/^version = .*/version = \"$VERSION\"/" pyproject.toml
+
+      - name: Build package
+        run: uv build
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          verbose: true
+
+      - name: Upload build artifacts to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG_NAME="${{ github.event.release.tag_name }}"
+          gh release upload "$TAG_NAME" dist/* --clobber
