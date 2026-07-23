@@ -1,0 +1,12 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>formidant demo</title>
+  <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+</head>
+<body>
+  <nav><a href="{% url 'signup' %}">Signup</a> | <a href="{% url 'orders' %}">Orders</a></nav>
+  {% block content %}{% endblock %}
+</body>
+</html>

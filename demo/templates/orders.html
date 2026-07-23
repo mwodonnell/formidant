@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% load formidant %}
+{% block content %}
+<h1>Edit order</h1>
+{% if saved %}<p class="fd-saved">Order saved.</p>{% endif %}
+<form method="post">
+  {% formidant form %}
+  <button type="button"
+          hx-get="{% url 'order-row' %}"
+          hx-vals='js:{"index": document.querySelectorAll("#id_items > .fd-row").length}'
+          hx-target="#id_items"
+          hx-swap="beforeend">Add item</button>
+  <button type="button"
+          hx-get="{% url 'order-row-remove' %}"
+          hx-target="#id_items > .fd-row:last-child"
+          hx-swap="outerHTML">Remove last item</button>
+  <button>Save</button>
+</form>
+{% endblock %}
