@@ -1,0 +1,1 @@
+<input type="file" name="{{ name }}" id="{{ id }}"{% if required %} required{% endif %}{% for key, val in attrs.items() %} {{ key }}="{{ val }}"{% endfor %}>

@@ -1,0 +1,6 @@
+<div class="fd-field{% if errors %} fd-invalid{% endif %}">
+{% if not container %}  <label for="{{ id }}">{{ label }}</label>
+{% endif %}  {{ widget_html }}
+{% for error in errors %}  <p class="fd-error">{{ error }}</p>
+{% endfor %}{% if help_text %}  <p class="fd-help">{{ help_text }}</p>
+{% endif %}</div>

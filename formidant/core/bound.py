@@ -1,9 +1,13 @@
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
 
 from formidant.core.exceptions import InvalidFormAccessError
 from formidant.core.form_types import BindResult
+
+if TYPE_CHECKING:
+    from formidant.core.rendering import TemplateEngine
 
 
 @dataclass(frozen=True)
@@ -48,3 +52,22 @@ class BoundForm[M: BaseModel]:
                 f"{self.model.__name__} form is not valid; check .valid before reading .instance"
             )
         return self.result.instance
+
+    def render(
+        self, engine: "TemplateEngine | None" = None, hidden_inputs: str = ""
+    ) -> str:
+        """Render the full form body through the default or given template engine."""
+        from formidant.core.rendering import render_form
+
+        return render_form(self, engine=engine, hidden_inputs=hidden_inputs)
+
+    def render_field(
+        self,
+        name: str,
+        engine: "TemplateEngine | None" = None,
+        index: int | None = None,
+    ) -> str:
+        """Render one field (or one repeat row, with `index`) in isolation."""
+        from formidant.core.rendering import render_field
+
+        return render_field(self, name, engine=engine, index=index)
