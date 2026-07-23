@@ -8,8 +8,13 @@ INSTALLED_APPS = ["formidant.django"]
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [Path(__file__).parent / "templates"],
+        "DIRS": [
+            Path(__file__).parent / "templates",
+            Path(__file__).parent.parent.parent / "demo" / "templates",
+        ],
         "APP_DIRS": False,
-        "OPTIONS": {},
+        "OPTIONS": {
+            "context_processors": ["django.template.context_processors.request"],
+        },
     }
 ]
