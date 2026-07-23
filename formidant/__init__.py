@@ -1,7 +1,7 @@
 """Formidant - Pydantic-powered web forms: binding, lifecycle, and rendering."""
 
 from formidant.core.binding import bind
-from formidant.core.bound import Bound, BoundContract, BoundForm
+from formidant.core.bound import Bound, BoundContract, BoundForm, Form, FormContract
 from formidant.core.exceptions import FormidantError, InvalidFormAccessError
 from formidant.core.files import UploadedFile
 from formidant.core.form_types import BindResult
@@ -15,6 +15,8 @@ __all__ = [
     "Bound",
     "BoundContract",
     "BoundForm",
+    "Form",
+    "FormContract",
     "FormData",
     "FormidantError",
     "InvalidFormAccessError",

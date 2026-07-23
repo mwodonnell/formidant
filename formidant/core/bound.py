@@ -90,3 +90,22 @@ class Bound:
 
     def __class_getitem__(cls, model: type[BaseModel]) -> Any:
         return Annotated[BoundForm, BoundContract(model)]
+
+
+@dataclass(frozen=True)
+class FormContract:
+    """Adapter-inspectable marker carried by Form[Model] annotations."""
+
+    model: type[BaseModel]
+
+
+class Form:
+    """View annotation contract: Form[Model] binds the parameter from form data.
+
+    In a multi-source view signature, Form[Model] marks the parameter that
+    binds from the submitted form body; the body receives the validated,
+    typed instance.
+    """
+
+    def __class_getitem__(cls, model: type[BaseModel]) -> Any:
+        return Annotated[model, FormContract(model)]
