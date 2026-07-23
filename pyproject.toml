@@ -51,6 +51,7 @@ test = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+DJANGO_SETTINGS_MODULE = "tests.django.settings"
 addopts = [
     "--verbose",
     "--cov=formidant",
