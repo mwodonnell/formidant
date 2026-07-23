@@ -570,6 +570,10 @@ with phase 2, mjo 2026-07-22).
 - **Widget theming packs (e.g. Tailwind/DaisyUI templates)** — deferred; R3 is the seam.
 - **Template-engine override** (mjo, 2026-07-22) — v1 ships Jinja2 only, behind the engine
   seam; exposing that seam publicly for alternative engines is a v2 round.
+- **`tags[]` append syntax** (flagged in ticket 2 review, default kept 2026-07-22) —
+  jQuery/qs-style `tags[]=a&tags[]=b` is rejected as malformed per the locked grammar
+  (repeated bare keys are the scalar-list encoding). Append semantics are cheap to add;
+  revisit on first real-world demand.
 
 ## Key references (verified 2026-07-22)
 
