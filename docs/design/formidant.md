@@ -1,10 +1,10 @@
 # formidant — design & plan
 
-**Status:** design pass in progress, started 2026-07-22 with mjo. **Phase 1 — Acceptance
-criteria: CLOSED 2026-07-22 — all criteria (B1–B5, L1–L6, R1–R6, P1–P4, X1–X3, D1–D4), the
-worked example, and the three-piece architecture accepted by mjo. Phase 2 — Test design: in
-progress. No code exists.** Pass order for this project (mjo, 2026-07-22): acceptance
-criteria → test design → build design (decisions/artifacts/tickets).
+**Status: plan locked 2026-07-22 with mjo.** All three phases CLOSED — acceptance criteria,
+test design (PR #1), and build design (decisions, module map, flow, ticket plan) accepted.
+**In build — ticket 1 (scaffolding) in progress; nothing merged yet.** All work lands via
+PR — no direct commits to main (mjo, 2026-07-22). This doc carries the working design
+between sessions; update Implementation status as tickets land.
 This doc pioneers the acceptance-criteria and test-design sections; once proved out here they
 get backported to `~/.claude/design-doc-reference.md` (agreed 2026-07-22 — prove out first,
 then amend the standard). This repo is standalone; the README will grow into the canonical
@@ -12,7 +12,8 @@ record if the project sprouts subsystems.
 
 ## Implementation status (updated 2026-07-22)
 
-Nothing built. Design phase 1 (acceptance criteria) drafted and awaiting review.
+Design pass complete and locked (all phases accepted 2026-07-22). Ticket 1 (scaffolding)
+in progress; no tickets merged.
 
 ## Context
 
@@ -291,7 +292,7 @@ def update_item(request: HttpRequest, item_id: int, q: str, item: Form[Item]) ->
 django-ninja signature experience without django-ninja. Third-party adapters build the same
 thing for their framework from the public P4 surface (protocol + introspection + error shape).
 
-## Test design — DRAFT (proposed 2026-07-22, awaiting mjo review)
+## Test design — ACCEPTED (mjo, 2026-07-22)
 
 The vetting suite, designed before build. Rules: every criterion is claimed by at least one
 named test (or explicitly marked review-gate); tests mirror the source tree (spoe-forge
@@ -367,19 +368,31 @@ alternative is review-gating. Proposed anyway because both criteria are objectiv
 that silently drift under review-gating — P3 stays a review-gate as the contrast case.
 Pushback welcome.
 
-### Test dependencies (proposed — need mjo approval before install)
+### Test dependencies — ACCEPTED (mjo, 2026-07-22)
 
 `pytest`, `pytest-django`, `hypothesis` (R5), `django` (adapter tests), `django-ninja`
 (test-only, D2 interop), `coverage`/`pytest-cov`. Tooling (uv, ruff pinned, pre-commit, CI)
-follows the spoe-forge setup and is locked in phase 3.
+follows the spoe-forge setup — locked in Build decisions.
 
-## Pre-lock check — NOT STARTED (phase 3)
+## Pre-lock check — PASSED (2026-07-22)
 
-Known checks to run before locking: pydantic v2 public API surface needed for widget
-resolution (`model_fields`, `FieldInfo.metadata`, annotated-types constraint objects) verified
-against the installed version; Jinja2 (locked as engine — see Decisions) verified against the
-installed version for R3's form/fieldset/widget override levels (ChoiceLoader/loader
-precedence), autoescape guarantees for X1, and clean coexistence with Django templates.
+Verified by executed script against **pydantic 2.13.4** and **jinja2 3.1.6** (10/10 pass):
+
+- `FieldInfo.metadata` carries arbitrary `Annotated` objects (our `Meta`) alongside
+  `annotated_types` constraint objects (`MaxLen`/`Ge`/`Le`) — R1's HTML attrs and R2's
+  presentation metadata are both derivable from the public field API.
+- `ValidationError.errors()` loc shape: nested list errors give `('items', 0, 'qty')`;
+  `model_validator` errors give `loc=()` — exactly the field-level vs form-level split L3
+  needs. `model_validate(context=...)` reaches validators via `info.context`.
+- `PydanticUseDefault` inside a wrap validator cleanly implements empty-string→default;
+  absent keys fall to field defaults — B4's normalization is implementable in one core step.
+- `Meta` is json-schema-inert (D2); `SecretStr` masks its repr.
+- Jinja2 `ChoiceLoader` gives user-loader-wins-with-fallthrough (R3's override levels);
+  `autoescape=True` escapes element and attribute positions (X1); `PackageLoader` ships
+  default templates in-package.
+- **Caveat to carry:** `EmailStr` requires `email-validator` (`pydantic[email]`) — that stays
+  a *user-side* dependency; the widget resolver must tolerate its absence (core deps remain
+  exactly pydantic + jinja2).
 
 ## Decisions
 
@@ -409,10 +422,139 @@ precedence), autoescape guarantees for X1, and clean coexistence with Django tem
   dependencies are therefore exactly two: pydantic and jinja2.
 - **Decorators are the v1 integration mechanism; middleware auto-binding is v2** (mjo,
   2026-07-22) — see Deferred.
+
+### Build decisions — ACCEPTED (mjo, 2026-07-22)
+
+- **Module layout: `formidant/core/` + `formidant/django/`, spoe-forge layering.** Core =
+  the framework-free everything (protocol, flatten, binding, bound form, meta, widgets,
+  rendering, errors, exceptions, constants, packaged templates); `formidant/django/` = the
+  one adapter. Top-level `__init__.py` exports a spoe-forge-scale surface (~8 names: `Meta`,
+  `Bound`, `Form`, `BoundForm`, `bind`, `FormData`, exceptions); adapter names export from
+  `formidant.django`. Dependencies point one way: django → core, never back.
+- **Bracket grammar: the Rack/Rails/PHP/qs convention.** `a[b]`, `items[0][sku]`; explicit
+  numeric indices required for `list[Model]` (deterministic ordering); bare repeated keys for
+  scalar lists (B3); duplicate scalar key → last wins (PHP/django-ninja behavior); index gaps
+  and out-of-range depth are binding errors surfaced as field errors, not exceptions.
+  **Depth cap: 5** — reference cluster: qs.js `depth` default is 5; PHP
+  `max_input_nesting_level` defaults to 64 (DoS-motivated cap, far looser); Rack has no cap
+  and has had advisories because of it. qs's value adopted; lives in `constants.py`.
+- **Quirk normalization (B4) is one core pre-validation step**, not user annotated types.
+  Rules: absent key + `bool`-typed field → `False` injected (HTML checkbox semantics); empty
+  string + non-`str`-typed field → treated as absent (falls to default, or required error);
+  empty string + `str`-typed field → kept (`min_length` catches it). Prior art: Django Forms
+  `CheckboxInput.value_from_datadict` / `empty_value` handling; fodantic does the same.
+- **`FormData` protocol (P2):** `keys()`, `getlist(key) -> list[str]`, and
+  `files: Mapping[str, UploadedFile]` where `UploadedFile` is itself a small protocol
+  (`name`, `size`, `content_type`, `read()`). Django's `UploadedFile` conforms structurally —
+  the adapter passes it through untouched.
+- **`BoundForm` API (L1):** `.valid: bool`, `.instance: M` (raises if accessed invalid —
+  the one deliberate exception), `.errors: dict[str, list[str]]` keyed by *input name*
+  (bracket path, e.g. `items[0][qty]`) so error→input pairing is string-equal, `.raw`,
+  `.render()`, `.render_field(name)`. Prior-art shape: WTForms (`form.errors`, field
+  iteration) with pydantic underneath.
+- **Widget resolution: registry-by-decorator, most-specific-first** (spoe-forge registry
+  pattern): explicit `Meta(widget=...)` → registered match on the field's resolved type →
+  structural fallback (nested model → fieldset, `list[Model]` → repeatable group). Widgets
+  are small frozen dataclasses (template name + input type + attr derivation); third parties
+  register their own via the same public decorator (P4).
+- **`Meta` vocabulary v1 (R2):** `label`, `help_text`, `placeholder`, `widget`, `attrs`,
+  `messages`. Frozen dataclass, validation-inert (verified in pre-lock). `messages` is D3's
+  override hook: a dict keyed by pydantic error `type` (`{"string_too_short": "Too short"}`)
+  — the DRF/Django-Forms `error_messages` pattern.
+- **Engine seam (R6):** a `TemplateEngine` protocol with one method,
+  `render(name: str, context: dict) -> str`. `Jinja2Engine` is the only v1 implementation:
+  `ChoiceLoader([user FileSystemLoader (optional), PackageLoader(defaults)])`,
+  `autoescape=True` locked and not user-disableable (X1). The protocol is public from day
+  one (cheap), but no second engine ships until the v2 round.
+- **CSRF slot (X2):** the form template renders a `hidden_inputs` context entry; the Django
+  adapter fills it with the CSRF token, other adapters fill their equivalent. Core stays
+  CSRF-ignorant.
+- **Tooling mirrors spoe-forge:** uv build backend, ruff (pinned), pre-commit, pytest with
+  coverage, GitHub Actions `pr_check` + `release`, Python ≥3.12. Tickets tracked in this doc
+  and as GitHub PRs (personal OSS — the Jira workflow doesn't apply).
 - All build decisions (module layout, template engine, `Annotated` metadata vocabulary,
   bracket-parsing semantics, file-type design, error-message hook shape): **OPEN — phase 3.**
 
-## Ticket plan — NOT STARTED (phase 3)
+## Module map
+
+| Module | Responsibility | Key exports |
+|---|---|---|
+| `core/protocol.py` | `FormData` + `UploadedFile` protocols — the only request-shaped things core knows | `FormData`, `UploadedFile` |
+| `core/flatten.py` | bracket-key multidict → nested dict (pure, no pydantic) | `inflate` |
+| `core/binding.py` | quirk normalization + `model_validate` orchestration | `bind` |
+| `core/bound.py` | the bound-form object | `BoundForm` |
+| `core/errors.py` | pydantic `loc` → input-name error mapping | — |
+| `core/meta.py` | presentation vocabulary | `Meta` |
+| `core/widgets.py` | type→widget registry + resolution | `widget`, widget classes |
+| `core/rendering.py` | engine seam + form/field render entry points | `TemplateEngine`, `Jinja2Engine` |
+| `core/templates/` | packaged minimal default templates | — |
+| `core/exceptions.py`, `core/constants.py` | per-layer errors; justified constants | — |
+| `django/adapter.py` | `HttpRequest` → `FormData`; method-aware `bind` | `bind` |
+| `django/views.py` | `form_view`, `bind_view` decorators (+ `on_invalid`, `Bound[...]`) | `form_view`, `bind_view` |
+| `django/templatetags/` | `{% formidant %}`, `{% formidant_field %}` → core render | — |
+| `demo/` | runnable Django demo app — D1 canon + manual QA + docs-by-example | — |
+
+## Flow — bind/validate/render cycle
+
+**In plain terms:** the browser posts form-encoded data. The adapter wraps the request in the
+`FormData` protocol and hands it to the core, which normalizes HTML quirks, inflates bracket
+keys into nested data, and runs plain pydantic validation. On success the view body runs with
+a typed model instance. On failure the decorator short-circuits: the bound form — carrying the
+user's raw input and per-field errors — re-renders through the same templates, and the browser
+sees their form back with errors in place.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant B as Browser
+    participant V as form_view (django adapter)
+    participant C as core (bind)
+    participant P as pydantic
+
+    B->>V: POST form-encoded
+    V->>C: bind(Model, FormData(request))
+    C->>C: normalize quirks · inflate brackets
+    C->>P: model_validate(data, context={"request"})
+    alt valid
+        P->>C: instance
+        C->>V: BoundForm(valid, instance)
+        V->>B: view body runs → redirect
+    else invalid
+        P->>C: ValidationError
+        C->>C: loc → input-name error map
+        C->>V: BoundForm(invalid, errors, raw)
+        V->>B: re-render template (raw values + errors, escaped)
+    end
+```
+
+## Ticket plan — ACCEPTED (mjo, 2026-07-22)
+
+Each ticket ≈ one reviewable commit (~150 lines non-test); pause for review after each.
+PR seams: A(1) · B(2–4) · C(5–7) · D(8–9) · E(10–11) · F(12).
+
+1. `chore: scaffold project tooling` — pyproject (uv_build), ruff, pre-commit, pytest+cov,
+   CI workflows, package skeleton — **not started** (PR A)
+2. `feat: add formdata protocol and bracket flattener` — `protocol.py`, `flatten.py`,
+   `constants.py`, P1 boundary meta-test — **not started** (PR B)
+3. `feat: add quirk normalization and binding core` — `binding.py`, `errors.py`; B1–B4 tests
+   — **not started** (PR B)
+4. `feat: add bound form object` — `bound.py`; L1/L2/L4 tests — **not started** (PR B)
+5. `feat: add meta vocabulary and widget resolution` — `meta.py`, `widgets.py`; R1
+   resolution/R2/D3 tests — **not started** (PR C)
+6. `feat: add jinja2 renderer with default templates` — `rendering.py`, `templates/`; R3/R4/
+   L3/X1 render tests — **not started** (PR C)
+7. `test: add roundtrip property suite` — hypothesis R5 (test-only) — **not started** (PR C)
+8. `feat: add django adapter bind` — `django/adapter.py`; uploads (B5), P4 meta-test —
+   **not started** (PR D)
+9. `feat: add form_view decorator with escape hatches` — L5/L6 — **not started** (PR D)
+10. `feat: add bind_view multi-source decorator` — D4 — **not started** (PR E)
+11. `feat: add template tags and csrf` — R6/X2 — **not started** (PR E)
+12. `feat: add demo app and interop tests` — `demo/`, D1 line-budget test, D2 ninja interop
+    — **not started** (PR F)
+
+Dependencies added: core — `pydantic`, `jinja2` (both CLOSED in Decisions). Test-only —
+`pytest`, `pytest-django`, `hypothesis`, `django`, `django-ninja`, `pytest-cov` (accepted
+with phase 2, mjo 2026-07-22).
 
 ## Deferred / open (each gets its own future round)
 
@@ -448,3 +590,8 @@ precedence), autoescape guarantees for X1, and clean coexistence with Django tem
   — the dual-definition drift failure mode D2 targets.
 - WTForms (3.3.x) — framework-agnostic incumbent; API-shape prior art for the bound-form
   object (`form.validate()`, `form.errors`, field iteration).
+- Bracket-grammar reference cluster: Rack/Rails query-nesting convention, PHP
+  `max_input_nesting_level` (64), qs.js `depth` option (default 5 — adopted).
+- DRF / Django Forms `error_messages` — prior art for `Meta(messages=...)` (D3).
+- Pre-lock verification script: scratchpad `prelock_check.py`, run 2026-07-22 against
+  pydantic 2.13.4 / jinja2 3.1.6 (10/10 PASS).
